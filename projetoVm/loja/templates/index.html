@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Semáforo IoT & Relés</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <div class="container">
+        <h1>🚦 Painel IoT - Raspberry Pi 5</h1>
+
+        <div class="main-layout">
+            <!-- COLUNA DA ESQUERDA -->
+            <div class="column-left">
+                
+                <!-- Card de Controle de Entrada, Saída e Relés Manuais -->
+                <div class="card">
+                    <h2>📊 Controle de Fluxo & Relés</h2>
+                    <div class="flow-grid">
+                        <div class="flow-item">
+                            <span>Entradas:</span>
+                            <strong id="val-entradas" class="text-green">0</strong>
+                        </div>
+                        <div class="flow-item">
+                            <span>Saídas:</span>
+                            <strong id="val-saidas" class="text-red">0</strong>
+                        </div>
+                        <div class="flow-item highlight-box">
+                            <span>Presentes:</span>
+                            <strong id="val-presentes">0</strong>
+                        </div>
+                    </div>
+
+                    <!-- Seção de Controle Manual dos Relés -->
+                    <div class="rele-control-section">
+                        <div class="rele-header-row">
+                            <h3>⚡ Painel de Relés</h3>
+                            <button id="btn-rele-auto" class="btn-rele-mode" onclick="ativarReleAuto()">Voltar Automático</button>
+                        </div>
+
+                        <div class="rele-status-grid">
+                            <!-- Relé IN1 -->
+                            <div class="rele-badge">
+                                <span>IN1 (GPIO 5): <strong id="status-rele-1" class="badge-off">Desligado</strong></span>
+                                <div class="rele-test-buttons">
+                                    <button onclick="controlarRele('in1', 'ligar')">Ligar</button>
+                                    <button onclick="controlarRele('in1', 'desligar')">Desligar</button>
+                                </div>
+                            </div>
+                            <!-- Relé IN2 -->
+                            <div class="rele-badge">
+                                <span>IN2 (GPIO 6): <strong id="status-rele-2" class="badge-off">Desligado</strong></span>
+                                <div class="rele-test-buttons">
+                                    <button onclick="controlarRele('in2', 'ligar')">Ligar</button>
+                                    <button onclick="controlarRele('in2', 'desligar')">Desligar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn-reset" onclick="resetarContadores()">🔄 Resetar Contadores</button>
+                </div>
+
+                <!-- Card de Monitoramento dos Sensores IR -->
+                <div class="card">
+                    <h2>📡 Estado Atual dos Sensores IR</h2>
+                    <div class="sensor-grid">
+                        <div class="sensor-item">
+                            <span>Sensor IR 1 (Entrada - Pino 16):</span>
+                            <div id="status-ir-1" class="badge livre">Livre</div>
+                        </div>
+                        <div class="sensor-item">
+                            <span>Sensor IR 2 (Saída - Pino 18):</span>
+                            <div id="status-ir-2" class="badge livre">Livre</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card de Estatísticas do Semáforo -->
+                <div class="card">
+                    <h2>📊 Estatísticas do Semáforo</h2>
+                    <div class="counter-grid">
+                        <div class="counter-item">
+                            <span class="text-red">Vermelho:</span>
+                            <strong id="count-vermelho">0</strong>
+                        </div>
+                        <div class="counter-item">
+                            <span class="text-yellow">Amarelo:</span>
+                            <strong id="count-amarelo">0</strong>
+                        </div>
+                        <div class="counter-item">
+                            <span class="text-green">Verde:</span>
+                            <strong id="count-verde">0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seleção de Modo -->
+                <div class="card">
+                    <h2>⚙️ Modo de Operação</h2>
+                    <div class="button-group">
+                        <button id="btn-auto" class="btn active">Modo Automático</button>
+                        <button id="btn-manual" class="btn">Modo Manual</button>
+                    </div>
+                </div>
+
+                <!-- Ajuste de Tempos (Modo Auto) -->
+                <div class="card" id="config-tempos">
+                    <h2>⏱️ Ajuste de Tempo (Automático)</h2>
+                    
+                    <div class="control-row" data-cor="vermelho">
+                        <span class="label text-red">Vermelho:</span>
+                        <div class="time-buttons">
+                            <button class="btn-time">10s</button>
+                            <button class="btn-time">5s</button>
+                            <button class="btn-time">2s</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row" data-cor="amarelo">
+                        <span class="label text-yellow">Amarelo:</span>
+                        <div class="time-buttons">
+                            <button class="btn-time">10s</button>
+                            <button class="btn-time">5s</button>
+                            <button class="btn-time">2s</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row" data-cor="verde">
+                        <span class="label text-green">Verde:</span>
+                        <div class="time-buttons">
+                            <button class="btn-time">10s</button>
+                            <button class="btn-time">5s</button>
+                            <button class="btn-time">2s</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comando Direto (Modo Manual) -->
+                <div class="card" id="controle-manual">
+                    <h2>🎮 Comando Manual (Acionamento Direto)</h2>
+                    <div class="traffic-light-triggers">
+                        <button class="btn-trigger bg-red" onclick="acionarManual('red')">Ligar Vermelho</button>
+                        <button class="btn-trigger bg-yellow" onclick="acionarManual('yellow')">Ligar Amarelo</button>
+                        <button class="btn-trigger bg-green" onclick="acionarManual('green')">Ligar Verde</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUNA DA DIREITA (Tabela do Brasileirão Interativa) -->
+            <div class="column-right">
+                <div class="card">
+                    <h2>⚽ Tabela (Clique no Time - Manual)</h2>
+                    <p class="table-tip">💡 No modo manual, clique em um time para acender o LED correspondente à sua posição!</p>
+                    <div class="table-container">
+                        <table class="tabela-brasileirao">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Clube</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-corpo">
+                                <!-- Preenchido via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de Integração AJAX -->
+    <script>
+        document.getElementById('btn-auto').addEventListener('click', () => alterarModo('auto'));
+        document.getElementById('btn-manual').addEventListener('click', () => alterarModo('manual'));
+
+        function alterarModo(modo) {
+            fetch('/set_modo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ modo: modo })
+            }).then(() => {
+                document.getElementById('btn-auto').classList.toggle('active', modo === 'auto');
+                document.getElementById('btn-manual').classList.toggle('active', modo === 'manual');
+            });
+        }
+
+        document.querySelectorAll('.control-row').forEach(row => {
+            const cor = row.getAttribute('data-cor');
+            row.querySelectorAll('.btn-time').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const valor = btn.innerText.replace('s', '');
+                    row.querySelectorAll('.btn-time').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+
+                    fetch('/set_tempo', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ cor: cor, valor: valor })
+                    });
+                });
+            });
+        });
+
+        function acionarManual(cor) {
+            fetch('/controlar_manual', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ cor: cor })
+            }).then(res => res.json())
+              .then(data => {
+                  if (data.status === 'erro') {
+                      alert('Ação bloqueada! Ative o MODO MANUAL primeiro.');
+                  }
+              });
+        }
+
+        function interagirComTime(nomeTime) {
+            fetch('/clicar_time', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ time: nomeTime })
+            }).then(res => res.json())
+              .then(data => {
+                  if (data.status === 'erro') {
+                      alert(data.mensagem);
+                  }
+              });
+        }
+
+        function resetarContadores() {
+            fetch('/reset_fluxo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            }).then(res => res.json())
+              .then(data => {
+                  if (data.status === 'sucesso') {
+                      document.getElementById('val-entradas').innerText = data.fluxo.entradas;
+                      document.getElementById('val-saidas').innerText = data.fluxo.saidas;
+                      document.getElementById('val-presentes').innerText = data.fluxo.presentes;
+                  }
+              });
+        }
+
+        function controlarRele(rele, acao) {
+            fetch('/controlar_rele_manual', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ rele: rele, acao: acao })
+            });
+        }
+
+        function ativarReleAuto() {
+            fetch('/ativar_rele_auto', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+        }
+
+        function buscarDados() {
+            fetch('/get_sensores')
+                .then(res => res.json())
+                .then(data => {
+                    const badge1 = document.getElementById('status-ir-1');
+                    const badge2 = document.getElementById('status-ir-2');
+
+                    badge1.innerText = data.ir_1;
+                    badge1.className = "badge " + (data.ir_1 === "Detectado" ? "detectado" : "livre");
+
+                    badge2.innerText = data.ir_2;
+                    badge2.className = "badge " + (data.ir_2 === "Detectado" ? "detectado" : "livre");
+
+                    document.getElementById('val-entradas').innerText = data.fluxo.entradas;
+                    document.getElementById('val-saidas').innerText = data.fluxo.saidas;
+                    document.getElementById('val-presentes').innerText = data.fluxo.presentes;
+
+                    const rele1 = document.getElementById('status-rele-1');
+                    const rele2 = document.getElementById('status-rele-2');
+
+                    rele1.innerText = data.reles.in1;
+                    rele1.className = data.reles.in1 === "Ligado" ? "badge-on" : "badge-off";
+
+                    rele2.innerText = data.reles.in2;
+                    rele2.className = data.reles.in2 === "Ligado" ? "badge-on" : "badge-off";
+
+                    // Estiliza o botão de modo automático do relé
+                    const btnAutoRele = document.getElementById('btn-rele-auto');
+                    if (data.reles.modo_manual) {
+                        btnAutoRele.style.backgroundColor = '#c53030';
+                        btnAutoRele.innerText = 'Modo Manual Ativo (Clique p/ Auto)';
+                    } else {
+                        btnAutoRele.style.backgroundColor = '#00875f';
+                        btnAutoRele.innerText = 'Modo Automático Ativo';
+                    }
+                });
+
+            fetch('/get_contadores')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('count-vermelho').innerText = data.vermelho;
+                    document.getElementById('count-amarelo').innerText = data.amarelo;
+                    document.getElementById('count-verde').innerText = data.verde;
+                });
+
+            fetch('/get_tabela')
+                .then(res => res.json())
+                .then(tabela => {
+                    const corpo = document.getElementById('tabela-corpo');
+                    corpo.innerHTML = '';
+                    tabela.forEach((time, index) => {
+                        const tr = document.createElement('tr');
+                        tr.style.cursor = 'pointer';
+                        tr.title = 'Clique para acionar o LED (Modo Manual)';
+                        tr.onclick = () => interagirComTime(time);
+
+                        if (time === 'Corinthians') {
+                            tr.classList.add('highlight-corinthians');
+                        }
+
+                        tr.innerHTML = `<td>${index + 1}º</td><td>${time}</td>`;
+                        corpo.appendChild(tr);
+                    });
+                });
+        }
+
+        setInterval(buscarDados, 1000);
+        buscarDados();
+    </script>
+</body>
+</html>
